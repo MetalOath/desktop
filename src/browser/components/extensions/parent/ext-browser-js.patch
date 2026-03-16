@@ -1,5 +1,5 @@
 diff --git a/browser/components/extensions/parent/ext-browser.js b/browser/components/extensions/parent/ext-browser.js
-index 2488267f4be5142bcacf984635d9e9ecdb5f02e9..03127808b3cae28850cc276fac0f1acbca85d326 100644
+index 2488267f4be5142bcacf984635d9e9ecdb5f02e9..96ff05fdc4c63d76bea8b5678014d8332c9eda63 100644
 --- a/browser/components/extensions/parent/ext-browser.js
 +++ b/browser/components/extensions/parent/ext-browser.js
 @@ -354,6 +354,7 @@ class TabTracker extends TabTrackerBase {
@@ -18,7 +18,22 @@ index 2488267f4be5142bcacf984635d9e9ecdb5f02e9..03127808b3cae28850cc276fac0f1acb
  
      this._tabs.set(nativeTab, id);
      if (nativeTab.linkedBrowser) {
-@@ -1273,6 +1275,10 @@ class TabManager extends TabManagerBase {
+@@ -933,6 +935,14 @@ class Tab extends TabBase {
+     return group ? getExtTabGroupIdForInternalTabGroupId(group.id) : -1;
+   }
+ 
++  get essential() {
++    return this.nativeTab.hasAttribute("zen-essential");
++  }
++
++  get zenWorkspaceId() {
++    return this.nativeTab.getAttribute("zen-workspace-id") || null;
++  }
++
+   /**
+    * Converts session store data to an object compatible with the return value
+    * of the convert() method, representing that data.
+@@ -1273,6 +1283,10 @@ class TabManager extends TabManagerBase {
    }
  
    canAccessTab(nativeTab) {
