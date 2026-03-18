@@ -1,0 +1,12 @@
+diff --git a/browser/components/extensions/schemas/jar.mn b/browser/components/extensions/schemas/jar.mn
+index 12428cda2619f84147e9b256068eb3725e3a5ac5..22e473fc56019242f3c13b57f352b84ae23fdbb6 100644
+--- a/browser/components/extensions/schemas/jar.mn
++++ b/browser/components/extensions/schemas/jar.mn
+@@ -21,6 +21,7 @@ browser.jar:
+     content/browser/schemas/sessions.json
+     content/browser/schemas/sidebar_action.json
+     content/browser/schemas/tabGroups.json
++    content/browser/schemas/zenWorkspaces.json
+     content/browser/schemas/tabs.json
+     content/browser/schemas/top_sites.json
+     content/browser/schemas/url_overrides.json
