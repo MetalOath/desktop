@@ -1,0 +1,45 @@
+diff --git a/browser/components/extensions/schemas/tabs.json b/browser/components/extensions/schemas/tabs.json
+index 00ba0341b465200c11797ad5ade79479925a6fa0..bf52d25b8da1653ab2b92b75963f3a298449957d 100644
+--- a/browser/components/extensions/schemas/tabs.json
++++ b/browser/components/extensions/schemas/tabs.json
+@@ -233,6 +233,16 @@
+             "optional": true,
+             "minimum": -1,
+             "description": "The ID of the group that the tab belongs to. $(ref:tabGroups.TAB_GROUP_ID_NONE) (-1) if the tab does not belong to a tab group."
++          },
++          "essential": {
++            "type": "boolean",
++            "optional": true,
++            "description": "Whether the tab is a Zen essential tab."
++          },
++          "zenWorkspaceId": {
++            "type": "string",
++            "optional": true,
++            "description": "The UUID of the Zen workspace this tab belongs to. Absent if the tab is in the default workspace or workspaces are not enabled."
+           }
+         }
+       },
+@@ -995,6 +1005,11 @@
+                 "minimum": -1,
+                 "optional": true,
+                 "description": "The ID of this tab's successor. If specified, the successor tab must be in the same window as this tab."
++              },
++              "essential": {
++                "type": "boolean",
++                "optional": true,
++                "description": "Whether the tab should be a Zen essential tab."
+               }
+             }
+           },
+@@ -1643,6 +1658,11 @@
+                     "minimum": -2,
+                     "optional": true,
+                     "description": "The window of the new group. Defaults to the current window."
++                  },
++                  "zenWorkspaceId": {
++                    "type": "string",
++                    "optional": true,
++                    "description": "The UUID of the Zen workspace to associate this group with."
+                   }
+                 }
+               }
