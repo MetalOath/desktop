@@ -1,0 +1,34 @@
+diff --git a/browser/components/extensions/parent/ext-tabGroups.js b/browser/components/extensions/parent/ext-tabGroups.js
+index 309e5d9f226d8bc3494d690fd3b4e93c3f4b1fb9..3a6ddd0bac0c617fa1376730f3769db7a622d8ae 100644
+--- a/browser/components/extensions/parent/ext-tabGroups.js
++++ b/browser/components/extensions/parent/ext-tabGroups.js
+@@ -90,6 +90,7 @@ this.tabGroups = class extends ExtensionAPIPersistent {
+       id: getExtTabGroupIdForInternalTabGroupId(group.id),
+       title: group.name,
+       windowId: windowTracker.getId(group.ownerGlobal),
++      zenFolder: !!group.isZenFolder,
+     };
+   }
+ 
+@@ -244,7 +245,7 @@ this.tabGroups = class extends ExtensionAPIPersistent {
+           );
+         },
+ 
+-        update: (groupId, { collapsed, color, title }) => {
++        update: (groupId, { collapsed, color, title, zenFolder }) => {
+           let group = this.get(groupId);
+           if (collapsed != null) {
+             group.collapsed = collapsed;
+@@ -255,6 +256,12 @@ this.tabGroups = class extends ExtensionAPIPersistent {
+           if (title != null) {
+             group.name = title;
+           }
++          if (zenFolder === true && !group.isZenFolder) {
++            const win = group.ownerGlobal;
++            const tabs = Array.from(group.tabs);
++            const folderOptions = { name: group.name, color: group.color };
++            group = win.gZenFolders.createFolder(tabs, folderOptions);
++          }
+           return this.convert(group);
+         },
+ 

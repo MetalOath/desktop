@@ -1,0 +1,28 @@
+diff --git a/browser/components/extensions/schemas/tabGroups.json b/browser/components/extensions/schemas/tabGroups.json
+index ab7311f938774e80c0cb5b87a2cabf9f7a1d703a..ad8e06d4d512846d7e64ca1801b7e01f50204498 100644
+--- a/browser/components/extensions/schemas/tabGroups.json
++++ b/browser/components/extensions/schemas/tabGroups.json
+@@ -59,6 +59,11 @@
+           "windowId": {
+             "type": "integer",
+             "description": "Window that the tab group is in."
++          },
++          "zenFolder": {
++            "type": "boolean",
++            "optional": true,
++            "description": "Whether this tab group has been promoted to a Zen Folder."
+           }
+         }
+       }
+@@ -189,6 +194,11 @@
+               "title": {
+                 "type": "string",
+                 "optional": true
++              },
++              "zenFolder": {
++                "type": "boolean",
++                "optional": true,
++                "description": "Set to true to promote this group to a Zen Folder."
+               }
+             }
+           },
