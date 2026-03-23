@@ -1,8 +1,33 @@
 diff --git a/browser/components/extensions/parent/ext-tabs.js b/browser/components/extensions/parent/ext-tabs.js
-index 7e32fc3f3c325b7317533acf5142bb912556fdbe..517caca8af767647eaa99a99d3266f84060f930d 100644
+index 7e32fc3f3c325b7317533acf5142bb912556fdbe..b8113f393d3b18545b4fc0326183ff75141d0307 100644
 --- a/browser/components/extensions/parent/ext-tabs.js
 +++ b/browser/components/extensions/parent/ext-tabs.js
-@@ -501,6 +501,7 @@ this.tabs = class extends ExtensionAPIPersistent {
+@@ -292,6 +292,24 @@ this.tabs = class extends ExtensionAPIPersistent {
+       };
+     },
+ 
++    onZenMoved({ fire }) {
++      let { tabManager } = this.extension;
++      const listener = (eventName, { nativeTab, workspaceId, fromIndex, toIndex }) => {
++        if (tabManager.canAccessTab(nativeTab)) {
++          fire.async(tabTracker.getId(nativeTab), { workspaceId, fromIndex, toIndex });
++        }
++      };
++      tabTracker.on("tab-zen-moved", listener);
++      return {
++        unregister() {
++          tabTracker.off("tab-zen-moved", listener);
++        },
++        convert(_fire) {
++          fire = _fire;
++        },
++      };
++    },
++
+     onHighlighted({ fire, context }) {
+       let { windowManager } = this.extension;
+       let highlightListener = (eventName, event) => {
+@@ -501,6 +519,7 @@ this.tabs = class extends ExtensionAPIPersistent {
          }
  
          let tab = tabManager.getWrapper(updatedTab);
@@ -10,7 +35,21 @@ index 7e32fc3f3c325b7317533acf5142bb912556fdbe..517caca8af767647eaa99a99d3266f84
  
          let changeInfo = {};
          for (let prop of needed) {
-@@ -855,6 +856,7 @@ this.tabs = class extends ExtensionAPIPersistent {
+@@ -729,6 +748,13 @@ this.tabs = class extends ExtensionAPIPersistent {
+           extensionApi,
+         }).api(),
+ 
++        onZenMoved: new EventManager({
++          context,
++          module,
++          event: "onZenMoved",
++          extensionApi,
++        }).api(),
++
+         onUpdated: new EventManager({
+           context,
+           module,
+@@ -855,6 +881,7 @@ this.tabs = class extends ExtensionAPIPersistent {
                });
              }
  
@@ -18,7 +57,31 @@ index 7e32fc3f3c325b7317533acf5142bb912556fdbe..517caca8af767647eaa99a99d3266f84
              let nativeTab = window.gBrowser.addTab(url, options);
  
              if (active) {
-@@ -1023,6 +1025,17 @@ this.tabs = class extends ExtensionAPIPersistent {
+@@ -886,6 +913,23 @@ this.tabs = class extends ExtensionAPIPersistent {
+               nativeTab.toggleMuteAudio(extension.id);
+             }
+ 
++            if (
++              createProperties.zenIndex !== undefined &&
++              createProperties.zenIndex !== null
++            ) {
++              const wsId =
++                createProperties.zenWorkspaceId ||
++                nativeTab.getAttribute("zen-workspace-id");
++              if (wsId) {
++                moveItemToZenIndex(
++                  nativeTab,
++                  createProperties.zenIndex,
++                  wsId,
++                  window
++                );
++              }
++            }
++
+             return tabManager.convert(nativeTab, currentTabSize);
+           });
+         },
+@@ -1023,6 +1067,17 @@ this.tabs = class extends ExtensionAPIPersistent {
              }
              tabbrowser.setSuccessor(nativeTab, successor);
            }
@@ -36,7 +99,57 @@ index 7e32fc3f3c325b7317533acf5142bb912556fdbe..517caca8af767647eaa99a99d3266f84
  
            return tabManager.convert(nativeTab);
          },
-@@ -1758,6 +1771,17 @@ this.tabs = class extends ExtensionAPIPersistent {
+@@ -1119,6 +1174,49 @@ this.tabs = class extends ExtensionAPIPersistent {
+         },
+ 
+         async move(tabIds, moveProperties) {
++          if (moveProperties.zenIndex !== undefined && moveProperties.zenIndex !== null) {
++            if (!Array.isArray(tabIds)) {
++              tabIds = [tabIds];
++            }
++            const movedTabs = [];
++            for (const tabId of tabIds) {
++              const nativeTab = tabTracker.getTab(tabId);
++              if (!nativeTab) {
++                continue;
++              }
++              if (nativeTab.hasAttribute("zen-essential")) {
++                throw new ExtensionError(
++                  "Essential tabs are workspace-independent and cannot be moved with zenIndex"
++                );
++              }
++              const win = nativeTab.ownerGlobal;
++              let workspaceId = moveProperties.zenWorkspaceId || nativeTab.getAttribute("zen-workspace-id");
++              if (!workspaceId) {
++                continue;
++              }
++              if (moveProperties.zenWorkspaceId && moveProperties.zenWorkspaceId !== nativeTab.getAttribute("zen-workspace-id")) {
++                if (!win.gZenWorkspaces?.getWorkspaceFromId(moveProperties.zenWorkspaceId)) {
++                  throw new ExtensionError(`No workspace with id: ${moveProperties.zenWorkspaceId}`);
++                }
++                nativeTab.setAttribute("zen-workspace-id", moveProperties.zenWorkspaceId);
++                workspaceId = moveProperties.zenWorkspaceId;
++              }
++              const fromIndex = getZenWorkspaceItems(workspaceId, win).findIndex(
++                i => i.type === "tab" && i.nativeItem === nativeTab
++              );
++              moveItemToZenIndex(nativeTab, moveProperties.zenIndex, workspaceId, win);
++              const toIndex = moveProperties.zenIndex;
++              tabTracker.emit("tab-zen-moved", {
++                nativeTab,
++                workspaceId,
++                fromIndex: fromIndex >= 0 ? fromIndex : 0,
++                toIndex,
++              });
++              movedTabs.push(nativeTab);
++            }
++            return movedTabs.map(t => tabManager.convert(t));
++          }
++
+           let tabsMoved = [];
+           if (!Array.isArray(tabIds)) {
+             tabIds = [tabIds];
+@@ -1758,6 +1856,17 @@ this.tabs = class extends ExtensionAPIPersistent {
              // Note: group is never null, because the only condition for which
              // it could be null is when all tabs are pinned, and we are already
              // explicitly unpinning them before moving.

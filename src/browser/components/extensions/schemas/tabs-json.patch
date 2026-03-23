@@ -1,8 +1,8 @@
 diff --git a/browser/components/extensions/schemas/tabs.json b/browser/components/extensions/schemas/tabs.json
-index 00ba0341b465200c11797ad5ade79479925a6fa0..bf52d25b8da1653ab2b92b75963f3a298449957d 100644
+index 00ba0341b465200c11797ad5ade79479925a6fa0..18547f58669b48313d3e0bea9d6627e2761a2d5c 100644
 --- a/browser/components/extensions/schemas/tabs.json
 +++ b/browser/components/extensions/schemas/tabs.json
-@@ -233,6 +233,16 @@
+@@ -233,6 +233,24 @@
              "optional": true,
              "minimum": -1,
              "description": "The ID of the group that the tab belongs to. $(ref:tabGroups.TAB_GROUP_ID_NONE) (-1) if the tab does not belong to a tab group."
@@ -16,10 +16,36 @@ index 00ba0341b465200c11797ad5ade79479925a6fa0..bf52d25b8da1653ab2b92b75963f3a29
 +            "type": "string",
 +            "optional": true,
 +            "description": "The UUID of the Zen workspace this tab belongs to. Absent if the tab is in the default workspace or workspaces are not enabled."
++          },
++          "zenIndex": {
++            "choices": [
++              { "type": "integer", "minimum": 0 },
++              { "type": "null" }
++            ],
++            "optional": true,
++            "description": "Zero-based position of this tab in its workspace sidebar. null for essential tabs, which are workspace-independent."
            }
          }
        },
-@@ -995,6 +1005,11 @@
+@@ -659,6 +677,17 @@
+                 "type": "boolean",
+                 "optional": true,
+                 "description": "Whether the tab should be muted when created."
++              },
++              "zenWorkspaceId": {
++                "type": "string",
++                "optional": true,
++                "description": "The UUID of the Zen workspace to place the new tab in."
++              },
++              "zenIndex": {
++                "type": "integer",
++                "minimum": 0,
++                "optional": true,
++                "description": "Zero-based sidebar position to place the tab at within its workspace, bypassing Firefox's pinned-tab hoisting."
+               }
+             }
+           },
+@@ -995,6 +1024,11 @@
                  "minimum": -1,
                  "optional": true,
                  "description": "The ID of this tab's successor. If specified, the successor tab must be in the same window as this tab."
@@ -31,7 +57,27 @@ index 00ba0341b465200c11797ad5ade79479925a6fa0..bf52d25b8da1653ab2b92b75963f3a29
                }
              }
            },
-@@ -1643,6 +1658,11 @@
+@@ -1040,7 +1074,19 @@
+               "index": {
+                 "type": "integer",
+                 "minimum": -1,
++                "optional": true,
+                 "description": "The position to move the window to. -1 will place the tab at the end of the window."
++              },
++              "zenIndex": {
++                "type": "integer",
++                "minimum": 0,
++                "optional": true,
++                "description": "Zero-based target position in the workspace sidebar, bypassing Firefox's pinned-tab hoisting. When supplied, index is ignored for sidebar display."
++              },
++              "zenWorkspaceId": {
++                "type": "string",
++                "optional": true,
++                "description": "If supplied, reassign the tab to this workspace and place it at zenIndex within it."
+               }
+             }
+           },
+@@ -1643,6 +1689,11 @@
                      "minimum": -2,
                      "optional": true,
                      "description": "The window of the new group. Defaults to the current window."
@@ -43,3 +89,27 @@ index 00ba0341b465200c11797ad5ade79479925a6fa0..bf52d25b8da1653ab2b92b75963f3a29
                    }
                  }
                }
+@@ -1816,6 +1867,23 @@
+           }
+         ]
+       },
++      {
++        "name": "onZenMoved",
++        "type": "function",
++        "description": "Fired when a tab's sidebar position changes due to browser.tabs.move() with a zenIndex parameter. Not fired during a zenWorkspaces.reorder() call.",
++        "parameters": [
++          { "type": "integer", "name": "tabId", "minimum": 0 },
++          {
++            "type": "object",
++            "name": "moveInfo",
++            "properties": {
++              "workspaceId": { "type": "string" },
++              "fromIndex": { "type": "integer", "minimum": 0 },
++              "toIndex": { "type": "integer", "minimum": 0 }
++            }
++          }
++        ]
++      },
+       {
+         "name": "onActivated",
+         "type": "function",

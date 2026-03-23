@@ -1,0 +1,78 @@
+diff --git a/browser/components/extensions/schemas/tabGroups.json b/browser/components/extensions/schemas/tabGroups.json
+index ab7311f938774e80c0cb5b87a2cabf9f7a1d703a..2dab3154d8a398f8f4909b9699a4c8b38ca7c6a7 100644
+--- a/browser/components/extensions/schemas/tabGroups.json
++++ b/browser/components/extensions/schemas/tabGroups.json
+@@ -59,6 +59,16 @@
+           "windowId": {
+             "type": "integer",
+             "description": "Window that the tab group is in."
++          },
++          "zenFolder": {
++            "type": "boolean",
++            "optional": true,
++            "description": "Whether this tab group has been promoted to a Zen Folder."
++          },
++          "zenIndex": {
++            "type": "integer",
++            "optional": true,
++            "description": "Zero-based position of the start of this group in its workspace sidebar."
+           }
+         }
+       }
+@@ -105,12 +115,19 @@
+             "properties": {
+               "index": {
+                 "type": "integer",
+-                "minimum": -1
++                "minimum": -1,
++                "optional": true
+               },
+               "windowId": {
+                 "type": "integer",
+                 "optional": true,
+                 "minimum": 0
++              },
++              "zenIndex": {
++                "type": "integer",
++                "minimum": 0,
++                "optional": true,
++                "description": "Zero-based target position in the workspace sidebar for the start of the group. All member tabs move together. If supplied, index is ignored."
+               }
+             }
+           },
+@@ -189,6 +206,11 @@
+               "title": {
+                 "type": "string",
+                 "optional": true
++              },
++              "zenFolder": {
++                "type": "boolean",
++                "optional": true,
++                "description": "Set to true to promote this group to a Zen Folder."
+               }
+             }
+           },
+@@ -236,6 +258,23 @@
+         "type": "function",
+         "description": "Fired when a tab group is updated.",
+         "parameters": [{ "$ref": "TabGroup", "name": "group" }]
++      },
++      {
++        "name": "onZenMoved",
++        "type": "function",
++        "description": "Fired when a tab group's sidebar position changes due to browser.tabGroups.move() with a zenIndex parameter. Not fired during a zenWorkspaces.reorder() call.",
++        "parameters": [
++          { "type": "integer", "name": "groupId", "minimum": 0 },
++          {
++            "type": "object",
++            "name": "moveInfo",
++            "properties": {
++              "workspaceId": { "type": "string" },
++              "fromIndex": { "type": "integer", "minimum": 0 },
++              "toIndex": { "type": "integer", "minimum": 0 }
++            }
++          }
++        ]
+       }
+     ]
+   }

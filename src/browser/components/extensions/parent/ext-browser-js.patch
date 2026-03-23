@@ -1,8 +1,76 @@
 diff --git a/browser/components/extensions/parent/ext-browser.js b/browser/components/extensions/parent/ext-browser.js
-index 2488267f4be5142bcacf984635d9e9ecdb5f02e9..03127808b3cae28850cc276fac0f1acbca85d326 100644
+index 2488267f4be5142bcacf984635d9e9ecdb5f02e9..380c38d8727d8050504ea7e6905d5376d541c0cd 100644
 --- a/browser/components/extensions/parent/ext-browser.js
 +++ b/browser/components/extensions/parent/ext-browser.js
-@@ -354,6 +354,7 @@ class TabTracker extends TabTrackerBase {
+@@ -20,6 +20,67 @@ var { ExtensionError } = ExtensionUtils;
+ 
+ var { defineLazyGetter } = ExtensionCommon;
+ 
++/**
++ * Returns an ordered array of { type, nativeItem } objects representing the
++ * non-essential tabs and groups in the given workspace, in sidebar order.
++ * Groups appear as a single entry; their member tabs are omitted.
++ *
++ * @param {string} workspaceId
++ * @param {DOMWindow} win
++ * @returns {{ type: "tab"|"group", nativeItem: Element }[]}
++ */
++function getZenWorkspaceItems(workspaceId, win) {
++  if (!win.gZenWorkspaces?.workspaceEnabled) {
++    return [];
++  }
++  const items = [];
++  const usedGroups = new Set();
++  for (const tab of win.gBrowser.tabs) {
++    if (
++      tab.hasAttribute("zen-essential") ||
++      tab.hasAttribute("zen-empty-tab")
++    ) {
++      continue;
++    }
++    if (tab.getAttribute("zen-workspace-id") !== workspaceId) {
++      continue;
++    }
++    const group = tab.group;
++    if (group) {
++      if (!usedGroups.has(group.id)) {
++        usedGroups.add(group.id);
++        items.push({ type: "group", nativeItem: group });
++      }
++    } else {
++      items.push({ type: "tab", nativeItem: tab });
++    }
++  }
++  return items;
++}
++
++/**
++ * Moves item (a tab or group) to the given zenIndex within workspaceId.
++ * Does NOT fire events — callers are responsible for that.
++ *
++ * @param {Element} item  A MozTabbrowserTab or MozTabbrowserTabGroup.
++ * @param {number}  zenIndex  Desired zero-based sidebar position.
++ * @param {string}  workspaceId
++ * @param {DOMWindow} win
++ */
++function moveItemToZenIndex(item, zenIndex, workspaceId, win) {
++  const items = getZenWorkspaceItems(workspaceId, win).filter(
++    i => i.nativeItem !== item
++  );
++  const clampedIndex = Math.max(0, Math.min(zenIndex, items.length));
++  if (clampedIndex >= items.length) {
++    if (items.length > 0) {
++      win.gBrowser.moveTabAfter(item, items[items.length - 1].nativeItem);
++    }
++  } else {
++    win.gBrowser.moveTabBefore(item, items[clampedIndex].nativeItem);
++  }
++}
++
+ const READER_MODE_PREFIX = "about:reader";
+ 
+ let tabTracker;
+@@ -354,6 +415,7 @@ class TabTracker extends TabTrackerBase {
    }
  
    getId(nativeTab) {
@@ -10,7 +78,7 @@ index 2488267f4be5142bcacf984635d9e9ecdb5f02e9..03127808b3cae28850cc276fac0f1acb
      let id = this._tabs.get(nativeTab);
      if (id) {
        return id;
-@@ -388,6 +389,7 @@ class TabTracker extends TabTrackerBase {
+@@ -388,6 +450,7 @@ class TabTracker extends TabTrackerBase {
      if (nativeTab.ownerGlobal.closed) {
        throw new Error("Cannot attach ID to a tab in a closed window.");
      }
@@ -18,7 +86,38 @@ index 2488267f4be5142bcacf984635d9e9ecdb5f02e9..03127808b3cae28850cc276fac0f1acb
  
      this._tabs.set(nativeTab, id);
      if (nativeTab.linkedBrowser) {
-@@ -1273,6 +1275,10 @@ class TabManager extends TabManagerBase {
+@@ -933,6 +996,30 @@ class Tab extends TabBase {
+     return group ? getExtTabGroupIdForInternalTabGroupId(group.id) : -1;
+   }
+ 
++  get essential() {
++    return this.nativeTab.hasAttribute("zen-essential");
++  }
++
++  get zenWorkspaceId() {
++    return this.nativeTab.getAttribute("zen-workspace-id") || null;
++  }
++
++  get zenIndex() {
++    const nativeTab = this.nativeTab;
++    if (nativeTab.hasAttribute("zen-essential")) {
++      return null;
++    }
++    const workspaceId = nativeTab.getAttribute("zen-workspace-id");
++    if (!workspaceId) {
++      return null;
++    }
++    const items = getZenWorkspaceItems(workspaceId, nativeTab.ownerGlobal);
++    const idx = items.findIndex(
++      i => i.type === "tab" && i.nativeItem === nativeTab
++    );
++    return idx >= 0 ? idx : null;
++  }
++
+   /**
+    * Converts session store data to an object compatible with the return value
+    * of the convert() method, representing that data.
+@@ -1273,6 +1360,10 @@ class TabManager extends TabManagerBase {
    }
  
    canAccessTab(nativeTab) {

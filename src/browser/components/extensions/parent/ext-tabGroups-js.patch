@@ -1,0 +1,129 @@
+diff --git a/browser/components/extensions/parent/ext-tabGroups.js b/browser/components/extensions/parent/ext-tabGroups.js
+index 309e5d9f226d8bc3494d690fd3b4e93c3f4b1fb9..ab3edcda56ad38bf17bc25f3c9d633b4f3bd716f 100644
+--- a/browser/components/extensions/parent/ext-tabGroups.js
++++ b/browser/components/extensions/parent/ext-tabGroups.js
+@@ -83,14 +83,26 @@ this.tabGroups = class extends ExtensionAPIPersistent {
+   }
+ 
+   convert(group) {
+-    return {
++    const result = {
+       collapsed: !!group.collapsed,
+       /** Internally we use "gray", but Chrome uses "grey" @see spellColour. */
+       color: group.color === "gray" ? "grey" : group.color,
+       id: getExtTabGroupIdForInternalTabGroupId(group.id),
+       title: group.name,
+       windowId: windowTracker.getId(group.ownerGlobal),
++      zenFolder: !!group.isZenFolder,
+     };
++    const workspaceId = group.tabs[0]?.getAttribute("zen-workspace-id");
++    if (workspaceId) {
++      const items = getZenWorkspaceItems(workspaceId, group.ownerGlobal);
++      const idx = items.findIndex(
++        i => i.type === "group" && i.nativeItem === group
++      );
++      if (idx >= 0) {
++        result.zenIndex = idx;
++      }
++    }
++    return result;
+   }
+ 
+   PERSISTENT_EVENTS = {
+@@ -198,6 +210,27 @@ this.tabGroups = class extends ExtensionAPIPersistent {
+         },
+       };
+     },
++
++    onZenMoved({ fire }) {
++      const listener = (eventName, { group, workspaceId, fromIndex, toIndex }) => {
++        if (this.extension.canAccessWindow(group.ownerGlobal)) {
++          fire.async(getExtTabGroupIdForInternalTabGroupId(group.id), {
++            workspaceId,
++            fromIndex,
++            toIndex,
++          });
++        }
++      };
++      this.on("group-zen-moved", listener);
++      return {
++        unregister: () => {
++          this.off("group-zen-moved", listener);
++        },
++        convert(_fire) {
++          fire = _fire;
++        },
++      };
++    },
+   };
+ 
+   getAPI(context) {
+@@ -208,10 +241,31 @@ this.tabGroups = class extends ExtensionAPIPersistent {
+           return this.convert(this.get(groupId));
+         },
+ 
+-        move: (groupId, { index, windowId }) => {
++        move: (groupId, { index, windowId, zenIndex }) => {
+           let group = this.get(groupId);
+           let win = group.ownerGlobal;
+ 
++          if (zenIndex !== undefined && zenIndex !== null) {
++            const workspaceId = group.tabs[0]?.getAttribute("zen-workspace-id");
++            if (!workspaceId) {
++              throw new ExtensionError(
++                "Cannot use zenIndex to move a group that has no workspace association"
++              );
++            }
++            const fromIndex = getZenWorkspaceItems(
++              workspaceId,
++              win
++            ).findIndex(i => i.type === "group" && i.nativeItem === group);
++            moveItemToZenIndex(group, zenIndex, workspaceId, win);
++            this.emit("group-zen-moved", {
++              group,
++              workspaceId,
++              fromIndex: fromIndex >= 0 ? fromIndex : 0,
++              toIndex: zenIndex,
++            });
++            return this.convert(group);
++          }
++
+           if (windowId != null) {
+             win = windowTracker.getWindow(windowId, context);
+             if (
+@@ -244,7 +298,7 @@ this.tabGroups = class extends ExtensionAPIPersistent {
+           );
+         },
+ 
+-        update: (groupId, { collapsed, color, title }) => {
++        update: (groupId, { collapsed, color, title, zenFolder }) => {
+           let group = this.get(groupId);
+           if (collapsed != null) {
+             group.collapsed = collapsed;
+@@ -255,6 +309,12 @@ this.tabGroups = class extends ExtensionAPIPersistent {
+           if (title != null) {
+             group.name = title;
+           }
++          if (zenFolder === true && !group.isZenFolder) {
++            const win = group.ownerGlobal;
++            const tabs = Array.from(group.tabs);
++            const folderOptions = { name: group.name, color: group.color };
++            group = win.gZenFolders.createFolder(tabs, folderOptions);
++          }
+           return this.convert(group);
+         },
+ 
+@@ -285,6 +345,13 @@ this.tabGroups = class extends ExtensionAPIPersistent {
+           event: "onUpdated",
+           extensionApi: this,
+         }).api(),
++
++        onZenMoved: new EventManager({
++          context,
++          module: "tabGroups",
++          event: "onZenMoved",
++          extensionApi: this,
++        }).api(),
+       },
+     };
+   }
