@@ -1,0 +1,17 @@
+diff --git a/browser/components/extensions/ext-browser.json b/browser/components/extensions/ext-browser.json
+index d5f3e0a500f2e9bf47a4483f15a191afecffc5b5..e87017ac26c71854313d0805d8666c98548b7a51 100644
+--- a/browser/components/extensions/ext-browser.json
++++ b/browser/components/extensions/ext-browser.json
+@@ -165,6 +165,12 @@
+     "scopes": ["addon_parent"],
+     "paths": [["tabGroups"]]
+   },
++  "zenWorkspaces": {
++    "url": "chrome://browser/content/parent/ext-zenWorkspaces.js",
++    "schema": "chrome://browser/content/schemas/zenWorkspaces.json",
++    "scopes": ["addon_parent"],
++    "paths": [["zenWorkspaces"]]
++  },
+   "tabs": {
+     "url": "chrome://browser/content/parent/ext-tabs.js",
+     "schema": "chrome://browser/content/schemas/tabs.json",
