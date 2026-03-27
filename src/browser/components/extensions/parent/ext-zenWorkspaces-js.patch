@@ -1,0 +1,104 @@
+diff --git a/browser/components/extensions/parent/ext-zenWorkspaces.js b/browser/components/extensions/parent/ext-zenWorkspaces.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000000
+--- /dev/null
++++ b/browser/components/extensions/parent/ext-zenWorkspaces.js
+@@ -0,0 +1,98 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++"use strict";
++
++var { ExtensionError } = ExtensionUtils;
++
++this.zenWorkspaces = class extends ExtensionAPIPersistent {
++  getManager() {
++    for (const win of windowTracker.browserWindows()) {
++      if (this.extension.canAccessWindow(win) && win.gZenWorkspaces?.workspaceEnabled) {
++        return win.gZenWorkspaces;
++      }
++    }
++    throw new ExtensionError("No Zen workspace-enabled window is accessible.");
++  }
++
++  convert(workspace) {
++    const result = { id: workspace.uuid, name: workspace.name };
++    if (workspace.icon) {
++      result.icon = workspace.icon;
++    }
++    return result;
++  }
++
++  PERSISTENT_EVENTS = {
++    onActivated({ fire }) {
++      const onUpdate = event => {
++        const workspaceId = event.detail?.activeIndex;
++        if (workspaceId) {
++          fire.async(workspaceId);
++        }
++      };
++      windowTracker.addListener("ZenWorkspacesUIUpdate", onUpdate);
++      return {
++        unregister() {
++          windowTracker.removeListener("ZenWorkspacesUIUpdate", onUpdate);
++        },
++        convert(_fire) {
++          fire = _fire;
++        },
++      };
++    },
++
++    onUpdated({ fire }) {
++      const onChange = () => {
++        fire.async();
++      };
++      windowTracker.addListener("ZenWorkspaceDataChanged", onChange);
++      return {
++        unregister() {
++          windowTracker.removeListener("ZenWorkspaceDataChanged", onChange);
++        },
++        convert(_fire) {
++          fire = _fire;
++        },
++      };
++    },
++  };
++
++  getAPI(context) {
++    return {
++      zenWorkspaces: {
++        query: () => {
++          return this.getManager().getWorkspaces().map(ws => this.convert(ws));
++        },
++
++        get: id => {
++          const ws = this.getManager().getWorkspaceFromId(id);
++          if (!ws) {
++            throw new ExtensionError(`No workspace with id: ${id}`);
++          }
++          return this.convert(ws);
++        },
++
++        getActive: () => {
++          const mgr = this.getManager();
++          const ws = mgr.getActiveWorkspace();
++          return ws ? this.convert(ws) : null;
++        },
++
++        onActivated: new EventManager({
++          context,
++          module: "zenWorkspaces",
++          event: "onActivated",
++          extensionApi: this,
++        }).api(),
++
++        onUpdated: new EventManager({
++          context,
++          module: "zenWorkspaces",
++          event: "onUpdated",
++          extensionApi: this,
++        }).api(),
++      },
++    };
++  }
++};

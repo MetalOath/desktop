@@ -1,0 +1,126 @@
+diff --git a/browser/components/extensions/schemas/zenWorkspaces.json b/browser/components/extensions/schemas/zenWorkspaces.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000000
+--- /dev/null
++++ b/browser/components/extensions/schemas/zenWorkspaces.json
+@@ -0,0 +1,120 @@
++[
++  {
++    "namespace": "manifest",
++    "types": [
++      {
++        "$extend": "OptionalPermissionNoPrompt",
++        "choices": [
++          {
++            "type": "string",
++            "enum": ["zenWorkspaces"]
++          }
++        ]
++      }
++    ]
++  },
++  {
++    "namespace": "zenWorkspaces",
++    "description": "Use the browser.zenWorkspaces API to interact with Zen Browser workspaces. Allows extensions and agents to query, observe, and react to workspace state.",
++    "permissions": ["zenWorkspaces"],
++    "types": [
++      {
++        "id": "Workspace",
++        "type": "object",
++        "description": "Represents a Zen workspace.",
++        "properties": {
++          "id": {
++            "type": "string",
++            "description": "Unique identifier (UUID) of the workspace."
++          },
++          "name": {
++            "type": "string",
++            "description": "Display name of the workspace."
++          },
++          "icon": {
++            "type": "string",
++            "optional": true,
++            "description": "Icon for the workspace — an emoji character or SVG URL."
++          }
++        }
++      }
++    ],
++    "functions": [
++      {
++        "name": "query",
++        "type": "function",
++        "description": "Returns all workspaces in the current window.",
++        "async": "callback",
++        "parameters": [
++          {
++            "type": "function",
++            "name": "callback",
++            "parameters": [
++              {
++                "name": "workspaces",
++                "type": "array",
++                "items": { "$ref": "Workspace" }
++              }
++            ]
++          }
++        ]
++      },
++      {
++        "name": "get",
++        "type": "function",
++        "description": "Returns the workspace with the given id.",
++        "async": "callback",
++        "parameters": [
++          {
++            "type": "string",
++            "name": "id"
++          },
++          {
++            "type": "function",
++            "name": "callback",
++            "parameters": [{ "name": "workspace", "$ref": "Workspace" }]
++          }
++        ]
++      },
++      {
++        "name": "getActive",
++        "type": "function",
++        "description": "Returns the currently active workspace, or null if workspaces are disabled.",
++        "async": "callback",
++        "parameters": [
++          {
++            "type": "function",
++            "name": "callback",
++            "parameters": [
++              {
++                "name": "workspace",
++                "$ref": "Workspace",
++                "optional": true
++              }
++            ]
++          }
++        ]
++      }
++    ],
++    "events": [
++      {
++        "name": "onActivated",
++        "type": "function",
++        "description": "Fired when the active workspace changes.",
++        "parameters": [
++          {
++            "type": "string",
++            "name": "workspaceId",
++            "description": "The UUID of the newly active workspace."
++          }
++        ]
++      },
++      {
++        "name": "onUpdated",
++        "type": "function",
++        "description": "Fired when workspace data changes (create, rename, reorder, or delete). Call zenWorkspaces.query() in the handler to get the current state.",
++        "parameters": []
++      }
++    ]
++  }
++]
