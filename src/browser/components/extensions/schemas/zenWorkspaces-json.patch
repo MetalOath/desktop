@@ -1,0 +1,201 @@
+diff --git a/browser/components/extensions/schemas/zenWorkspaces.json b/browser/components/extensions/schemas/zenWorkspaces.json
+new file mode 100644
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000000
+--- /dev/null
++++ b/browser/components/extensions/schemas/zenWorkspaces.json
+@@ -0,0 +1,195 @@
++[
++  {
++    "namespace": "manifest",
++    "types": [
++      {
++        "$extend": "OptionalPermissionNoPrompt",
++        "choices": [
++          {
++            "type": "string",
++            "enum": ["zenWorkspaces"]
++          }
++        ]
++      }
++    ]
++  },
++  {
++    "namespace": "zenWorkspaces",
++    "description": "Use the browser.zenWorkspaces API to interact with Zen Browser workspaces. Allows extensions and agents to query, observe, and react to workspace state.",
++    "permissions": ["zenWorkspaces"],
++    "types": [
++      {
++        "id": "Workspace",
++        "type": "object",
++        "description": "Represents a Zen workspace.",
++        "properties": {
++          "id": {
++            "type": "string",
++            "description": "Unique identifier (UUID) of the workspace."
++          },
++          "name": {
++            "type": "string",
++            "description": "Display name of the workspace."
++          },
++          "icon": {
++            "type": "string",
++            "optional": true,
++            "description": "Icon for the workspace — an emoji character or SVG URL."
++          }
++        }
++      },
++      {
++        "id": "OrderItem",
++        "type": "object",
++        "description": "A single entry in a workspace sidebar order — either a tab or a tab group.",
++        "properties": {
++          "type": {
++            "type": "string",
++            "enum": ["tab", "group"],
++            "description": "Whether this item is a tab or a tab group."
++          },
++          "id": {
++            "type": "integer",
++            "minimum": 0,
++            "description": "The tab ID (if type is 'tab') or tab group ID (if type is 'group')."
++          }
++        }
++      }
++    ],
++    "functions": [
++      {
++        "name": "query",
++        "type": "function",
++        "description": "Returns all workspaces in the current window.",
++        "async": "callback",
++        "parameters": [
++          {
++            "type": "function",
++            "name": "callback",
++            "parameters": [
++              {
++                "name": "workspaces",
++                "type": "array",
++                "items": { "$ref": "Workspace" }
++              }
++            ]
++          }
++        ]
++      },
++      {
++        "name": "get",
++        "type": "function",
++        "description": "Returns the workspace with the given id.",
++        "async": "callback",
++        "parameters": [
++          {
++            "type": "string",
++            "name": "id"
++          },
++          {
++            "type": "function",
++            "name": "callback",
++            "parameters": [{ "name": "workspace", "$ref": "Workspace" }]
++          }
++        ]
++      },
++      {
++        "name": "getActive",
++        "type": "function",
++        "description": "Returns the currently active workspace, or null if workspaces are disabled.",
++        "async": "callback",
++        "parameters": [
++          {
++            "type": "function",
++            "name": "callback",
++            "parameters": [
++              {
++                "name": "workspace",
++                "$ref": "Workspace",
++                "optional": true
++              }
++            ]
++          }
++        ]
++      },
++      {
++        "name": "getSidebarOrder",
++        "type": "function",
++        "description": "Returns the current sidebar order of the given workspace as an ordered array of tabs and groups. Essential tabs are not included.",
++        "async": "callback",
++        "parameters": [
++          {
++            "type": "string",
++            "name": "workspaceId"
++          },
++          {
++            "type": "function",
++            "name": "callback",
++            "parameters": [
++              {
++                "name": "items",
++                "type": "array",
++                "items": { "$ref": "OrderItem" }
++              }
++            ]
++          }
++        ]
++      },
++      {
++        "name": "reorder",
++        "type": "function",
++        "description": "Atomically sets the complete sidebar order for a workspace. The items array must contain every non-essential tab and every group currently belonging to the workspace.",
++        "async": "callback",
++        "parameters": [
++          {
++            "type": "string",
++            "name": "workspaceId"
++          },
++          {
++            "type": "array",
++            "name": "items",
++            "items": { "$ref": "OrderItem" }
++          },
++          {
++            "type": "function",
++            "name": "callback",
++            "optional": true,
++            "parameters": []
++          }
++        ]
++      }
++    ],
++    "events": [
++      {
++        "name": "onActivated",
++        "type": "function",
++        "description": "Fired when the active workspace changes.",
++        "parameters": [
++          {
++            "type": "string",
++            "name": "workspaceId",
++            "description": "The UUID of the newly active workspace."
++          }
++        ]
++      },
++      {
++        "name": "onUpdated",
++        "type": "function",
++        "description": "Fired when workspace data changes (create, rename, reorder, or delete). Call zenWorkspaces.query() in the handler to get the current state.",
++        "parameters": []
++      },
++      {
++        "name": "onReordered",
++        "type": "function",
++        "description": "Fired after a successful zenWorkspaces.reorder() call. Call getSidebarOrder(workspaceId) in the handler to get the new order.",
++        "parameters": [
++          {
++            "type": "string",
++            "name": "workspaceId",
++            "description": "The UUID of the workspace whose order changed."
++          }
++        ]
++      }
++    ]
++  }
++]
