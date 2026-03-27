@@ -6,12 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Zen Browser is a Firefox-based browser built on Firefox 148.0.2, managed by the [Surfer](https://github.com/zen-browser/surfer) build tool. The codebase layers Zen-specific features on top of Firefox's source tree via patches. Two release channels exist: `release` (stable) and `twilight` (RC/feature preview).
 
+## Branch structure and which branch to use
+
+This repo has several feature branches. **Do not try to combine them** — each is an independent PR targeting `dev`, and their patch files will conflict if you mix branches.
+
+| Branch | What it adds | Use for |
+|--------|-------------|---------|
+| `feat/webextension-zen-apis` | `tab.essential`, `tab.zenWorkspaceId`, `tabs.update({ essential })` | PR only |
+| `feat/webextension-zen-folder-api` | `tabGroups.update({ zenFolder })` | PR only |
+| `feat/webextension-workspace-namespace` | `browser.zenWorkspaces` API | PR only |
+| `feat/webextension-workspace-scoped-groups` | `tabs.group({ zenWorkspaceId })` | PR only |
+| `feat/webextension-sidebar-order-api` | `zenIndex`, `getSidebarOrder()`, `reorder()` + **all of the above** | **Build this one** |
+
+**If you want a browser build with all features: check out `feat/webextension-sidebar-order-api` before running setup.** That branch's `src/` patches are cumulative and include every feature. The other branches each contain only their own isolated changes — checking one out and running `npm run import` will give you only that feature.
+
 ## Initial Setup
 
 ```bash
+git checkout feat/webextension-sidebar-order-api   # always use this branch for a full build
 npm ci                  # Install Node dependencies (requires Node 22)
 npm run download        # Download Firefox engine via Surfer
-npm run import          # Import patches + preferences into engine/
+npm run import          # Apply all patches to engine/ (reads from src/ on current branch)
 npm run bootstrap       # Set up the build environment
 python3 scripts/update_en_US_packs.py   # Required: populate localization files
 ```

@@ -1,0 +1,196 @@
+diff --git a/browser/components/extensions/parent/ext-zenWorkspaces.js b/browser/components/extensions/parent/ext-zenWorkspaces.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000000
+--- /dev/null
++++ b/browser/components/extensions/parent/ext-zenWorkspaces.js
+@@ -0,0 +1,190 @@
++/* This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this
++ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
++"use strict";
++
++var { ExtensionError } = ExtensionUtils;
++
++this.zenWorkspaces = class extends ExtensionAPIPersistent {
++  getManager() {
++    for (const win of windowTracker.browserWindows()) {
++      if (this.extension.canAccessWindow(win) && win.gZenWorkspaces?.workspaceEnabled) {
++        return win.gZenWorkspaces;
++      }
++    }
++    throw new ExtensionError("No Zen workspace-enabled window is accessible.");
++  }
++
++  getManagerAndWindow() {
++    for (const win of windowTracker.browserWindows()) {
++      if (this.extension.canAccessWindow(win) && win.gZenWorkspaces?.workspaceEnabled) {
++        return { mgr: win.gZenWorkspaces, win };
++      }
++    }
++    throw new ExtensionError("No Zen workspace-enabled window is accessible.");
++  }
++
++  convert(workspace) {
++    const result = { id: workspace.uuid, name: workspace.name };
++    if (workspace.icon) {
++      result.icon = workspace.icon;
++    }
++    return result;
++  }
++
++  PERSISTENT_EVENTS = {
++    onActivated({ fire }) {
++      const onUpdate = event => {
++        const workspaceId = event.detail?.activeIndex;
++        if (workspaceId) {
++          fire.async(workspaceId);
++        }
++      };
++      windowTracker.addListener("ZenWorkspacesUIUpdate", onUpdate);
++      return {
++        unregister() {
++          windowTracker.removeListener("ZenWorkspacesUIUpdate", onUpdate);
++        },
++        convert(_fire) {
++          fire = _fire;
++        },
++      };
++    },
++
++    onUpdated({ fire }) {
++      const onChange = () => {
++        fire.async();
++      };
++      windowTracker.addListener("ZenWorkspaceDataChanged", onChange);
++      return {
++        unregister() {
++          windowTracker.removeListener("ZenWorkspaceDataChanged", onChange);
++        },
++        convert(_fire) {
++          fire = _fire;
++        },
++      };
++    },
++
++    onReordered({ fire }) {
++      const onReorder = workspaceId => {
++        fire.async(workspaceId);
++      };
++      this.on("onReordered", onReorder);
++      return {
++        unregister: () => {
++          this.off("onReordered", onReorder);
++        },
++        convert(_fire) {
++          fire = _fire;
++        },
++      };
++    },
++  };
++
++  getAPI(context) {
++    return {
++      zenWorkspaces: {
++        query: () => {
++          return this.getManager().getWorkspaces().map(ws => this.convert(ws));
++        },
++
++        get: id => {
++          const ws = this.getManager().getWorkspaceFromId(id);
++          if (!ws) {
++            throw new ExtensionError(`No workspace with id: ${id}`);
++          }
++          return this.convert(ws);
++        },
++
++        getActive: () => {
++          const mgr = this.getManager();
++          const ws = mgr.getActiveWorkspace();
++          return ws ? this.convert(ws) : null;
++        },
++
++        getSidebarOrder: workspaceId => {
++          const { mgr, win } = this.getManagerAndWindow();
++          if (!mgr.getWorkspaceFromId(workspaceId)) {
++            throw new ExtensionError(`No workspace with id: ${workspaceId}`);
++          }
++          return getZenWorkspaceItems(workspaceId, win).map(item => ({
++            type: item.type,
++            id:
++              item.type === "tab"
++                ? tabTracker.getId(item.nativeItem)
++                : getExtTabGroupIdForInternalTabGroupId(item.nativeItem.id),
++          }));
++        },
++
++        reorder: (workspaceId, items) => {
++          const { mgr, win } = this.getManagerAndWindow();
++          if (!mgr.getWorkspaceFromId(workspaceId)) {
++            throw new ExtensionError(`No workspace with id: ${workspaceId}`);
++          }
++          const current = getZenWorkspaceItems(workspaceId, win);
++          if (items.length !== current.length) {
++            throw new ExtensionError(
++              `incomplete order — missing ${current.length - items.length} items`
++            );
++          }
++          for (let i = 0; i < items.length; i++) {
++            const entry = items[i];
++            let nativeItem;
++            if (entry.type === "tab") {
++              nativeItem = tabTracker.getTab(entry.id);
++              if (!nativeItem) {
++                throw new ExtensionError(`No tab with id: ${entry.id}`);
++              }
++              if (nativeItem.hasAttribute("zen-essential")) {
++                throw new ExtensionError(
++                  "Essential tabs cannot appear in reorder() items"
++                );
++              }
++              if (nativeItem.getAttribute("zen-workspace-id") !== workspaceId) {
++                throw new ExtensionError(
++                  `Tab ${entry.id} does not belong to workspace ${workspaceId}`
++                );
++              }
++            } else {
++              const internalId = getInternalTabGroupIdForExtTabGroupId(entry.id);
++              nativeItem = win.gBrowser.tabGroups.find(
++                g => g.id === internalId
++              );
++              if (!nativeItem) {
++                throw new ExtensionError(`No group with id: ${entry.id}`);
++              }
++            }
++            moveItemToZenIndex(nativeItem, i, workspaceId, win);
++          }
++          this._fireReordered(workspaceId);
++        },
++
++        onActivated: new EventManager({
++          context,
++          module: "zenWorkspaces",
++          event: "onActivated",
++          extensionApi: this,
++        }).api(),
++
++        onUpdated: new EventManager({
++          context,
++          module: "zenWorkspaces",
++          event: "onUpdated",
++          extensionApi: this,
++        }).api(),
++
++        onReordered: new EventManager({
++          context,
++          module: "zenWorkspaces",
++          event: "onReordered",
++          extensionApi: this,
++        }).api(),
++      },
++    };
++  }
++
++  _fireReordered(workspaceId) {
++    this.emit("onReordered", workspaceId);
++  }
++};
